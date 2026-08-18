@@ -172,6 +172,51 @@ func TestDirSize_NonExistentPathReturnsZero(t *testing.T) {
 	}
 }
 
+func TestDirSize_SkipsSymlinkedDirectories(t *testing.T) {
+	tmp := t.TempDir()
+	real := filepath.Join(tmp, "real")
+	writeFile(t, filepath.Join(real, "big.tmp"), 10_000)
+
+	scanned := filepath.Join(tmp, "scanned")
+	if err := os.MkdirAll(scanned, 0o755); err != nil {
+		t.Fatalf("setup failed: %v", err)
+	}
+	writeFile(t, filepath.Join(scanned, "own.tmp"), 5)
+
+	link := filepath.Join(scanned, "link-to-real")
+	if err := os.Symlink(real, link); err != nil {
+		t.Skipf("sistema não permite criar link simbólico sem privilégio (Modo de Desenvolvedor desativado?): %v", err)
+	}
+
+	size, count, err := dirSize(context.Background(), scanned)
+	if err != nil {
+		t.Fatalf("erro inesperado: %v", err)
+	}
+	if size != 5 || count != 1 {
+		t.Errorf("dirSize deveria ignorar o conteúdo do link simbólico, contando só own.tmp; got size=%d count=%d, want size=5 count=1", size, count)
+	}
+}
+
+func TestDirSize_SkipsSymlinkedFiles(t *testing.T) {
+	tmp := t.TempDir()
+	writeFile(t, filepath.Join(tmp, "real.tmp"), 10_000)
+
+	link := filepath.Join(tmp, "link.tmp")
+	if err := os.Symlink(filepath.Join(tmp, "real.tmp"), link); err != nil {
+		t.Skipf("sistema não permite criar link simbólico sem privilégio: %v", err)
+	}
+
+	size, count, err := dirSize(context.Background(), tmp)
+	if err != nil {
+		t.Fatalf("erro inesperado: %v", err)
+	}
+	// Conta o arquivo real (10000 bytes) mas ignora o link, que não deveria
+	// somar mais 10000 bytes.
+	if size != 10_000 || count != 1 {
+		t.Errorf("got size=%d count=%d, want size=10000 count=1 (link deveria ser ignorado)", size, count)
+	}
+}
+
 func TestDirSize_CountsNestedFiles(t *testing.T) {
 	tmp := t.TempDir()
 	writeFile(t, filepath.Join(tmp, "a.tmp"), 5)

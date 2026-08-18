@@ -129,6 +129,11 @@ func Scan(ctx context.Context, categories []rules.Category, probeRecycleBin Recy
 // dirSize soma o tamanho de todos os arquivos regulares dentro de path.
 // Erros de acesso a itens individuais (ex.: permissão negada) são ignorados
 // para que um único arquivo protegido não impeça o restante da varredura.
+//
+// Links simbólicos e junctions NUNCA são seguidos: um item malicioso
+// plantado dentro de um local varrido (ex.: %TEMP%) apontando para fora do
+// escopo pretendido não deve influenciar o tamanho reportado nem levar a
+// varredura para fora do local que o usuário pediu para analisar.
 func dirSize(ctx context.Context, path string) (int64, int, error) {
 	var size int64
 	var count int
@@ -139,6 +144,12 @@ func dirSize(ctx context.Context, path string) (int64, int, error) {
 		}
 		if err != nil {
 			return nil // ignora entradas inacessíveis, segue a varredura
+		}
+		if d.Type()&fs.ModeSymlink != 0 {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 		if d.IsDir() {
 			return nil

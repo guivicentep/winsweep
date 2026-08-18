@@ -75,6 +75,67 @@ func TestSendToRecycleBin_EscapesSingleQuotesInPath(t *testing.T) {
 	}
 }
 
+func TestSendToRecycleBin_AdversarialCharactersStayLiteral(t *testing.T) {
+	// Nenhum desses caracteres precisa ser tratado como especial dentro de
+	// uma string de aspas simples do PowerShell — o teste prova que eles
+	// chegam ao script como texto literal, nunca como comando executável.
+	// Só usamos caracteres que o próprio NTFS aceita em nomes de pasta
+	// (< > : " / \ | ? * são proibidos pelo Windows, então nem entram aqui).
+	dangerous := []string{
+		"$(calc)",
+		"`whoami`",
+		"a & echo pwned",
+		"a; echo pwned",
+		"a) } # comentario",
+		"50% off",
+	}
+
+	for _, name := range dangerous {
+		t.Run(name, func(t *testing.T) {
+			tmp := t.TempDir()
+			dir := filepath.Join(tmp, name)
+			if err := os.Mkdir(dir, 0o755); err != nil {
+				t.Skipf("nome de pasta não suportado neste sistema de arquivos: %v", err)
+			}
+
+			runner := &fakeRunner{}
+			c := New(runner)
+
+			if err := c.SendToRecycleBin(dir); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			wantQuoted := "'" + strings.ReplaceAll(dir, "'", "''") + "'"
+			if !strings.Contains(runner.lastScript, wantQuoted) {
+				t.Errorf("esperava %q embutido como texto literal, script gerado: %s", wantQuoted, runner.lastScript)
+			}
+		})
+	}
+}
+
+func TestSendToRecycleBin_RefusesSymlinks(t *testing.T) {
+	tmp := t.TempDir()
+	target := filepath.Join(tmp, "target")
+	if err := os.Mkdir(target, 0o755); err != nil {
+		t.Fatalf("setup failed: %v", err)
+	}
+	link := filepath.Join(tmp, "link")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("sistema não permite criar link simbólico sem privilégio (Modo de Desenvolvedor desativado?): %v", err)
+	}
+
+	runner := &fakeRunner{}
+	c := New(runner)
+
+	err := c.SendToRecycleBin(link)
+	if err == nil {
+		t.Fatal("esperava erro ao tentar excluir um link simbólico ou junction")
+	}
+	if runner.lastScript != "" {
+		t.Error("não deveria ter chamado o PowerShell para um link simbólico")
+	}
+}
+
 func TestSendToRecycleBin_NonExistentPathFailsFast(t *testing.T) {
 	runner := &fakeRunner{}
 	c := New(runner)

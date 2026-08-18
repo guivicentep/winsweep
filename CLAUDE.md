@@ -100,6 +100,78 @@ não trazer dependências desnecessárias num app pequeno). Estrutura:
   locais/valores **bem conhecidos, documentados e reversíveis** — nunca
   heurística sobre arquivos pessoais do usuário.
 
+## Modelo de ameaças (auditoria feita, resultado registrado)
+
+Pedido do usuário: "impedir que pessoas maldosas introduzam scripts ou
+coisas do gênero". Traduzido para riscos concretos deste app específico e
+auditado ponto a ponto:
+
+1. **Injeção de comando nos scripts PowerShell** — o único lugar onde um
+   valor que não é uma constante do código (um caminho vindo do disco) entra
+   num script é `SendToRecycleBin` (`internal/cleaner/cleaner.go`). Usa
+   `psQuote()`, que embrulha o valor entre aspas simples do PowerShell e
+   dobra aspas simples internas (`'` → `''`) — a forma correta de escapar
+   strings literais no PowerShell (aspas simples não fazem interpolação, ao
+   contrário de aspas duplas, então nenhum outro caractere precisa de
+   tratamento). Coberto por `TestSendToRecycleBin_AdversarialCharactersStayLiteral`,
+   que cria pastas de verdade com nomes contendo `$()`, backtick, `&`, `;`,
+   `#` etc. e confirma que tudo chega ao script como texto literal. Todos os
+   outros scripts (registro, powercfg, esvaziar lixeira) usam só constantes
+   do próprio código — não há caminho de injeção ali.
+2. **XSS / injeção de HTML no frontend** — todo texto dinâmico (nome de
+   categoria, descrição, caminho de arquivo) passa por `escapeHtml()`
+   (`frontend/src/format.js`) antes de virar `innerHTML`. Também vale notar
+   que o Windows já proíbe `< > : " / \ | ? *` em nomes de arquivo/pasta, o
+   que por si só impede a forma mais óbvia de injetar uma tag `<script>`
+   via nome de arquivo — mas o escape não depende só disso.
+3. **A janela do app nunca carrega conteúdo remoto** — `main.go` serve só o
+   `embed.FS` local (`frontend/dist`), e nenhum código do projeto chama
+   `runtime.BrowserOpenURL` ou navega a própria janela para fora. Isso
+   importa porque o Wails expõe os métodos de `App` para QUALQUER página
+   carregada dentro daquela mesma janela — se um dia alguém adicionar
+   navegação para uma URL externa dentro do webview principal (não abrir no
+   navegador do sistema, que é seguro), essa página ganharia acesso direto
+   às funções privilegiadas do Go. **Não fazer isso.**
+4. **Links simbólicos / junctions usados para escapar do escopo varrido** —
+   o risco mais concreto encontrado na auditoria: algo malicioso já presente
+   na máquina poderia plantar um link/junction dentro de um local varrido
+   (ex.: dentro de `%TEMP%`) apontando para outro lugar do disco, fazendo o
+   app somar tamanho ou (pior) agir sobre um caminho diferente do que foi
+   mostrado ao usuário. Mitigado em duas camadas:
+   - `internal/scanner/scanner.go` (`dirSize`): a varredura nunca segue
+     reparse points — usa `d.Type()&fs.ModeSymlink` e retorna
+     `filepath.SkipDir` para não descer neles, e não conta o tamanho de
+     links que sejam arquivos.
+   - `internal/cleaner/cleaner.go` (`SendToRecycleBin`): troca `os.Stat`
+     (que segue links) por `os.Lstat` (que não segue) e **recusa
+     explicitamente** excluir qualquer caminho que seja, ele mesmo, um link
+     simbólico/junction.
+   - Nota à parte: a exclusão em si (`FileSystem.DeleteDirectory` com
+     `SendToRecycleBin`) passa pelo Shell do Windows, que por padrão não
+     segue reparse points aninhados dentro da pasta sendo movida — então o
+     risco maior sempre foi a RAIZ do que está sendo excluído ter virado um
+     link entre a varredura e o clique de exclusão, exatamente o que a
+     checagem em `SendToRecycleBin` cobre.
+   - Testes (`TestDirSize_SkipsSymlinkedDirectories`,
+     `TestDirSize_SkipsSymlinkedFiles`, `TestSendToRecycleBin_RefusesSymlinks`)
+     existem mas **pulam automaticamente** nesta máquina — criar link
+     simbólico no Windows exige o Modo de Desenvolvedor ativado ou
+     privilégio de administrador, nenhum dos dois disponível nesta sessão.
+     Rodam de verdade em qualquer máquina com um dos dois habilitados.
+5. **Cadeia de suprimentos (dependências)** — `go.sum` fixa o hash de cada
+   dependência Go (verificado automaticamente pelo próprio `go build`/`go
+   test` via GOSUMDB); `frontend/package-lock.json` faz o mesmo para as
+   dependências npm. Nenhuma dependência é carregada dinamicamente em
+   runtime. O único download feito pelo projeto é o bootstrapper do WebView2
+   durante o BUILD do instalador (não em runtime do app), de uma URL oficial
+   da Microsoft — ver seção do `.msi` acima.
+6. **O app não faz nenhuma chamada de rede em runtime** — nem a varredura,
+   nem a exclusão, nem os ajustes de otimização acessam a internet. Isso é
+   uma propriedade estrutural (não existe nenhum `net/http` importado fora
+   do que o próprio Wails usa internamente para servir o asset local) e vale
+   manter assim — qualquer feature futura que precise de rede deve ser
+   discutida com o usuário antes, não adicionada por conveniência.
+
 ## Bugs já encontrados e corrigidos (não reintroduzir)
 
 - **`Clear-RecycleBin` (cmdlet do PowerShell) é instável** — falha

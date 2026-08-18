@@ -31,9 +31,17 @@ func New(runner Runner) *Cleaner {
 // SendToRecycleBin move um arquivo ou pasta para a Lixeira do Windows, uma
 // ação reversível pelo próprio usuário.
 func (c *Cleaner) SendToRecycleBin(path string) error {
-	info, err := os.Stat(path)
+	// os.Lstat (em vez de os.Stat) para NÃO seguir links simbólicos/junctions:
+	// se o caminho em si foi trocado por um redirecionamento entre a
+	// varredura e a exclusão (ou plantado por algo malicioso), recusamos em
+	// vez de arriscar agir sobre um alvo diferente do que foi mostrado ao
+	// usuário.
+	info, err := os.Lstat(path)
 	if err != nil {
 		return fmt.Errorf("não foi possível acessar %q: %w", path, err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("%q é um link simbólico ou junction; por segurança, não será excluído automaticamente", path)
 	}
 
 	method := "DeleteFile"
