@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Fonte do instalador .msi do winsweep (WiX Toolset v3).
+  Gerado/mantido manualmente — veja build-msi.ps1 no mesmo diretório para o
+  passo a passo de build, e o CLAUDE.md na raiz do projeto para o porquê
+  das decisões aqui (bootstrap do WebView2, InstallScope, etc).
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*"
+           Name="winsweep"
+           Language="1046"
+           Version="$(var.ProductVersion)"
+           Manufacturer="winsweep"
+           UpgradeCode="23D793CC-94D6-4524-84C0-4C52D00353CD">
+
+    <Package InstallerVersion="500"
+             Compressed="yes"
+             InstallScope="perUser"
+             Description="Instalador do winsweep"
+             Comments="Limpeza e otimização de desempenho para Windows" />
+
+    <MajorUpgrade DowngradeErrorMessage="Uma versão mais recente do winsweep já está instalada." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Detecta se o WebView2 Runtime (dependência de execução do winsweep,
+         baseado em Wails) já está instalado no sistema — seja uma instalação
+         por máquina (HKLM, o caso mais comum, já vem de fábrica no Windows
+         11) ou por usuário (HKCU, quando instalado sem privilégios de
+         administrador, igual a este pacote). -->
+    <Property Id="WEBVIEW2_MACHINE">
+      <RegistrySearch Id="WebView2MachineSearch"
+                       Root="HKLM"
+                       Key="SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+                       Name="pv"
+                       Type="raw" />
+    </Property>
+    <Property Id="WEBVIEW2_USER">
+      <RegistrySearch Id="WebView2UserSearch"
+                       Root="HKCU"
+                       Key="SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+                       Name="pv"
+                       Type="raw" />
+    </Property>
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="LocalAppDataFolder">
+        <Directory Id="AppInstallRoot" Name="Programs">
+          <Directory Id="INSTALLFOLDER" Name="winsweep">
+            <Component Id="MainExecutable" Guid="05F783B5-84BE-4569-8942-526221F0F790">
+              <!-- Componentes instalados no perfil do usuário (per-user
+                   install) precisam usar uma chave de registro HKCU como
+                   KeyPath, não o próprio arquivo (regra ICE38 do WiX). -->
+              <File Id="WinsweepExe"
+                    Source="$(var.AppExe)"
+                    KeyPath="no" />
+              <RegistryValue Root="HKCU"
+                              Key="Software\winsweep"
+                              Name="installDir"
+                              Type="string"
+                              Value="[INSTALLFOLDER]"
+                              KeyPath="yes" />
+              <RemoveFolder Id="RemoveInstallFolder" Directory="INSTALLFOLDER" On="uninstall" />
+              <RemoveFolder Id="RemoveAppInstallRoot" Directory="AppInstallRoot" On="uninstall" />
+            </Component>
+          </Directory>
+        </Directory>
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="winsweep" />
+      </Directory>
+      <Directory Id="DesktopFolder" Name="Desktop" />
+    </Directory>
+
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="StartMenuShortcut" Guid="*">
+        <Shortcut Id="StartMenuShortcutItem"
+                  Name="winsweep"
+                  Description="Limpeza e otimização de desempenho para Windows"
+                  Target="[INSTALLFOLDER]winsweep.exe"
+                  WorkingDirectory="INSTALLFOLDER" />
+        <RemoveFolder Id="RemoveApplicationProgramsFolder" On="uninstall" />
+        <RegistryValue Root="HKCU"
+                        Key="Software\winsweep"
+                        Name="installed"
+                        Type="integer"
+                        Value="1"
+                        KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="DesktopFolder">
+      <Component Id="DesktopShortcut" Guid="*">
+        <Shortcut Id="DesktopShortcutItem"
+                  Name="winsweep"
+                  Description="Limpeza e otimização de desempenho para Windows"
+                  Target="[INSTALLFOLDER]winsweep.exe"
+                  WorkingDirectory="INSTALLFOLDER" />
+        <RegistryValue Root="HKCU"
+                        Key="Software\winsweep"
+                        Name="desktopShortcut"
+                        Type="integer"
+                        Value="1"
+                        KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <Feature Id="MainFeature" Title="winsweep" Level="1">
+      <ComponentRef Id="MainExecutable" />
+      <ComponentRef Id="StartMenuShortcut" />
+      <ComponentRef Id="DesktopShortcut" />
+    </Feature>
+
+    <!-- Bootstrap do Microsoft Edge WebView2 Runtime: só é executado se
+         nenhuma das duas propriedades acima encontrar o runtime instalado
+         (ver InstallExecuteSequence abaixo). O instalador "Evergreen" é
+         pequeno (~2MB) e baixa o
+         runtime completo durante a instalação; é o mesmo mecanismo
+         recomendado pela própria Microsoft para apps baseados em WebView2. -->
+    <Binary Id="WebView2Bootstrapper" SourceFile="redist\MicrosoftEdgeWebview2Setup.exe" />
+    <CustomAction Id="InstallWebView2"
+                   BinaryKey="WebView2Bootstrapper"
+                   ExeCommand="/silent /install"
+                   Execute="deferred"
+                   Impersonate="yes"
+                   Return="ignore" />
+
+    <InstallExecuteSequence>
+      <Custom Action="InstallWebView2" After="InstallFiles">
+        NOT WEBVIEW2_MACHINE AND NOT WEBVIEW2_USER AND NOT Installed
+      </Custom>
+    </InstallExecuteSequence>
+
+    <Icon Id="AppIcon.ico" SourceFile="$(var.AppIcon)" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
+    <Property Id="ARPNOREPAIR" Value="yes" Secure="yes" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/" />
+
+    <UIRef Id="WixUI_InstallDir" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+  </Product>
+</Wix>

@@ -1,0 +1,113 @@
+:root {
+    /* Cor */
+    --bg: #0d1117;
+    --bg-elevated: #121922;
+    --surface: #161d27;
+    --surface-hover: #1b2430;
+    --surface-active: #212c3a;
+    --border: #263244;
+    --border-strong: #37455a;
+    --text-primary: #eef2f7;
+    --text-secondary: #a8b6c9;
+    --text-tertiary: #6b7c94;
+
+    --accent: #4da3ff;
+    --accent-strong: #7cbcff;
+    --accent-soft: rgba(77, 163, 255, 0.12);
+    --accent-border: rgba(77, 163, 255, 0.3);
+
+    --success: #3ecf8e;
+    --success-soft: rgba(62, 207, 142, 0.12);
+    --warning: #ffb020;
+    --warning-soft: rgba(255, 176, 32, 0.12);
+    --warning-border: rgba(255, 176, 32, 0.35);
+    --danger: #ff6161;
+    --danger-strong: #ff8a8a;
+    --danger-soft: rgba(255, 97, 97, 0.12);
+
+    /* Espaçamento (base 4px) */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+
+    /* Raio */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+
+    /* Tipografia */
+    --font-sans: "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", sans-serif;
+    --text-xs: 12px;
+    --text-sm: 12.5px;
+    --text-base: 13.5px;
+    --text-md: 15px;
+    --text-lg: 18px;
+    --text-xl: 21px;
+
+    /* Sombra */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
+
+    /* Movimento */
+    --ease: cubic-bezier(0.4, 0, 0.2, 1);
+    --dur-fast: 120ms;
+    --dur-base: 200ms;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    background-color: var(--bg);
+    color: var(--text-primary);
+}
+
+body {
+    margin: 0;
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    -webkit-font-smoothing: antialiased;
+}
+
+#app {
+    min-height: 100vh;
+    text-align: left;
+}
+
+::selection {
+    background: var(--accent-soft);
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+button {
+    font-family: inherit;
+}
+
+button:focus-visible,
+[tabindex]:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
