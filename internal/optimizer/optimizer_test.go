@@ -189,3 +189,58 @@ func TestRegistryToggle_RevertPropagatesRunnerError(t *testing.T) {
 		t.Fatal("esperava erro do runner se propagando")
 	}
 }
+
+func TestMultiRegistryToggle_DetectRequiresAllValuesApplied(t *testing.T) {
+	tests := []struct {
+		name   string
+		output string
+		want   State
+	}{
+		{"both applied", "0|0", StateApplied},
+		{"both at default", "1|1", StateNotApplied},
+		{"only first applied", "0|1", StateNotApplied},
+		{"only second applied", "1|0", StateNotApplied},
+		{"both missing", "|", StateNotApplied},
+		{"whitespace around values", " 0 | 0 \n", StateApplied},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			o := New(&fakeRunner{output: tc.output})
+			got, err := o.Detect("gaming_disable_game_dvr")
+			if err != nil {
+				t.Fatalf("erro inesperado: %v", err)
+			}
+			if got != tc.want {
+				t.Errorf("Detect() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestMultiRegistryToggle_ApplySetsAllValues(t *testing.T) {
+	runner := &fakeRunner{}
+	o := New(runner)
+
+	if err := o.Apply("gaming_disable_game_dvr"); err != nil {
+		t.Fatalf("erro inesperado: %v", err)
+	}
+	if !strings.Contains(runner.lastScript, "GameDVR_Enabled") || !strings.Contains(runner.lastScript, "AppCaptureEnabled") {
+		t.Errorf("script de apply deveria mexer nas duas chaves, obtido: %s", runner.lastScript)
+	}
+}
+
+func TestMultiRegistryToggle_RevertRestoresAllValues(t *testing.T) {
+	runner := &fakeRunner{}
+	o := New(runner)
+
+	if err := o.Revert("gaming_disable_game_bar_overlay"); err != nil {
+		t.Fatalf("erro inesperado: %v", err)
+	}
+	if !strings.Contains(runner.lastScript, "ShowStartupPanel") || !strings.Contains(runner.lastScript, "UseNexusForGameBarEnabled") {
+		t.Errorf("script de revert deveria mexer nas duas chaves, obtido: %s", runner.lastScript)
+	}
+	if !strings.Contains(runner.lastScript, "-Value 1") {
+		t.Errorf("esperava restaurar o valor padrão (1), obtido: %s", runner.lastScript)
+	}
+}

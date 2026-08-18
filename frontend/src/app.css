@@ -383,6 +383,12 @@
     border-color: var(--accent-border);
 }
 
+.badge-gaming {
+    background: var(--success-soft);
+    color: var(--success);
+    border-color: rgba(62, 207, 142, 0.35);
+}
+
 .pill {
     display: inline-flex;
     align-items: center;

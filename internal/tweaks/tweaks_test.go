@@ -22,7 +22,7 @@ func TestBuiltin_AllTweaksAreWellFormed(t *testing.T) {
 			if tw.Name == "" {
 				t.Error("ajuste sem Name")
 			}
-			if tw.Category != CategoryPower && tw.Category != CategoryVisual {
+			if tw.Category != CategoryPower && tw.Category != CategoryVisual && tw.Category != CategoryGaming {
 				t.Errorf("categoria desconhecida: %q", tw.Category)
 			}
 			if len(tw.Description) < 20 {

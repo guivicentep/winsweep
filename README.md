@@ -7,7 +7,9 @@ Aplicativo desktop para Windows com duas funções:
   Lixeira, etc.), mostra para que serve cada um e só remove o que você
   confirmar, item a item.
 - **Otimização** — ajustes de desempenho reversíveis (plano de energia,
-  efeitos visuais do Windows) para computadores mais lentos ou antigos.
+  efeitos visuais do Windows, e uma categoria "Jogos" com ajustes do Xbox
+  Game Bar) para computadores mais lentos ou antigos, e para dar mais
+  desempenho aos jogos.
 
 ## Instalação (para usuários)
 

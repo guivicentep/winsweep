@@ -11,7 +11,8 @@ App desktop Windows com duas funções independentes:
    Windows (cache de navegadores, temporários, Lixeira, etc.) e exclui só o
    que o usuário confirmar, item a item.
 2. **Otimização** — ajustes de desempenho reversíveis (plano de energia,
-   efeitos visuais) para computadores lentos/antigos.
+   efeitos visuais, e uma categoria "Jogos") para computadores lentos/antigos
+   e para dar mais desempenho em jogos.
 
 ## Stack: Go + Wails (decisão tomada, não reabrir sem novo motivo)
 
@@ -99,6 +100,22 @@ não trazer dependências desnecessárias num app pequeno). Estrutura:
 - Regra geral ao adicionar categorias/ajustes novos: só entram no catálogo
   locais/valores **bem conhecidos, documentados e reversíveis** — nunca
   heurística sobre arquivos pessoais do usuário.
+- **Categoria "Jogos" (decisão registrada)**: o usuário pediu um "modo de
+  desempenho para jogos". Perguntei explicitamente se ele queria incluir os
+  ajustes clássicos de HKLM (`SystemResponsiveness`,
+  `NetworkThrottlingIndex`) e/ou desativar o serviço SysMain — ele escolheu
+  **ficar só no HKCU, sem pedir admin**, mesma arquitetura de hoje. Por
+  isso a categoria `jogos` só tem ajustes de registro do usuário atual
+  (desativar Game DVR / captura em segundo plano do Xbox Game Bar,
+  desativar abertura automática do overlay). Se o usuário pedir os ajustes
+  de HKLM no futuro, vai exigir implementar um fluxo de elevação (UAC) —
+  não existe hoje, é trabalho novo, não só adicionar mais entradas no
+  catálogo.
+- `internal/optimizer` ganhou `multiRegistryToggleAction` (generaliza
+  `registryToggleAction` para mexer em mais de uma chave de registro como
+  um único ajuste atômico — usado pelos tweaks de Game DVR/Game Bar, que
+  cada um liga/desliga duas chaves relacionadas juntas). O ajuste só conta
+  como "Aplicado" se **todas** as chaves estiverem no valor esperado.
 
 ## Modelo de ameaças (auditoria feita, resultado registrado)
 

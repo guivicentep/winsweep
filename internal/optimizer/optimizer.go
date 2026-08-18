@@ -76,6 +76,14 @@ var actions = map[string]action{
 		`HKCU:\Control Panel\Desktop`, "DragFullWindows", kindString, "0", "1"),
 	"visual_taskbar_animations": registryToggleAction(
 		`HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced`, "TaskbarAnimations", kindDWord, "0", "1"),
+	"gaming_disable_game_dvr": multiRegistryToggleAction([]regTarget{
+		{path: `HKCU:\System\GameConfigStore`, name: "GameDVR_Enabled", kind: kindDWord},
+		{path: `HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR`, name: "AppCaptureEnabled", kind: kindDWord},
+	}, "0", "1"),
+	"gaming_disable_game_bar_overlay": multiRegistryToggleAction([]regTarget{
+		{path: `HKCU:\Software\Microsoft\GameBar`, name: "ShowStartupPanel", kind: kindDWord},
+		{path: `HKCU:\Software\Microsoft\GameBar`, name: "UseNexusForGameBarEnabled", kind: kindDWord},
+	}, "0", "1"),
 }
 
 // valueKind é o tipo de valor de registro manipulado por um toggle.
@@ -90,22 +98,61 @@ const (
 // alternando um único valor de registro entre appliedValue (quando o ajuste
 // está ativo) e defaultValue (o padrão de fábrica do Windows, usado ao reverter).
 func registryToggleAction(path, name string, kind valueKind, appliedValue, defaultValue string) action {
-	detect := fmt.Sprintf(
-		`(Get-ItemProperty -Path '%s' -Name '%s' -ErrorAction SilentlyContinue).'%s'`,
-		path, name, name,
-	)
-	apply := registrySetScript(path, name, kind, appliedValue)
-	revert := registrySetScript(path, name, kind, defaultValue)
+	return multiRegistryToggleAction([]regTarget{{path: path, name: name, kind: kind}}, appliedValue, defaultValue)
+}
+
+// regTarget identifica um único valor de registro manipulado por um ajuste.
+type regTarget struct {
+	path string
+	name string
+	kind valueKind
+}
+
+// multiRegistryToggleAction constrói uma action para um ajuste que liga/desliga
+// alternando, em conjunto, um ou mais valores de registro entre appliedValue
+// (quando o ajuste está ativo) e defaultValue (o padrão de fábrica do
+// Windows, usado ao reverter). O ajuste só é considerado "aplicado" quando
+// TODOS os valores estão em appliedValue.
+func multiRegistryToggleAction(targets []regTarget, appliedValue, defaultValue string) action {
+	varNames := make([]string, len(targets))
+	var detectDecls []string
+	var applyLines []string
+	var revertLines []string
+
+	for i, t := range targets {
+		varName := fmt.Sprintf("$v%d", i)
+		varNames[i] = varName
+		detectDecls = append(detectDecls, fmt.Sprintf(
+			`%s = (Get-ItemProperty -Path '%s' -Name '%s' -ErrorAction SilentlyContinue).'%s'`,
+			varName, t.path, t.name, t.name,
+		))
+		applyLines = append(applyLines, registrySetScript(t.path, t.name, t.kind, appliedValue))
+		revertLines = append(revertLines, registrySetScript(t.path, t.name, t.kind, defaultValue))
+	}
+
+	// Junta todos os valores numa única linha de saída delimitada por "|",
+	// para que a detecção de múltiplas chaves seja tão confiável de fazer
+	// o parsing quanto a de uma chave só (uma linha, um formato fixo).
+	detect := strings.Join(detectDecls, "\n") + "\n\"" + strings.Join(varNames, "|") + "\""
+	apply := strings.Join(applyLines, "; ")
+	revert := strings.Join(revertLines, "; ")
+	want := len(targets)
 
 	return action{
 		detectScript: detect,
 		applyScript:  apply,
 		revertScript: revert,
 		parseDetect: func(out string) (State, error) {
-			if strings.TrimSpace(out) == appliedValue {
-				return StateApplied, nil
+			parts := strings.Split(strings.TrimSpace(out), "|")
+			if len(parts) != want {
+				return StateNotApplied, nil
 			}
-			return StateNotApplied, nil
+			for _, p := range parts {
+				if strings.TrimSpace(p) != appliedValue {
+					return StateNotApplied, nil
+				}
+			}
+			return StateApplied, nil
 		},
 	}
 }

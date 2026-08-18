@@ -1,6 +1,7 @@
 // Package tweaks define o catálogo curado de ajustes de desempenho para
-// deixar o Windows mais leve em computadores mais lentos ou antigos:
-// plano de energia e efeitos visuais. Cada ajuste é individual e reversível.
+// deixar o Windows mais leve em computadores mais lentos ou antigos, e para
+// reduzir overhead de fundo durante jogos. Cada ajuste é individual e
+// reversível.
 package tweaks
 
 // Category agrupa os ajustes por área, usado para organizar a interface.
@@ -9,6 +10,7 @@ type Category string
 const (
 	CategoryPower  Category = "energia"
 	CategoryVisual Category = "visual"
+	CategoryGaming Category = "jogos"
 )
 
 // Tweak descreve um ajuste de desempenho individual: para que serve, o que
@@ -69,11 +71,32 @@ func Builtin() []Tweak {
 			Impact: "Efeito imediato.",
 		},
 		{
-			ID:       "visual_taskbar_animations",
-			Name:     "Desativar animações da barra de tarefas",
-			Category: CategoryVisual,
+			ID:          "visual_taskbar_animations",
+			Name:        "Desativar animações da barra de tarefas",
+			Category:    CategoryVisual,
 			Description: "Remove as animações ao abrir e fechar programas na barra de tarefas.",
-			Impact: "Pode exigir reiniciar o Explorer ou fazer logoff para ter efeito completo.",
+			Impact:      "Pode exigir reiniciar o Explorer ou fazer logoff para ter efeito completo.",
+		},
+		{
+			ID:       "gaming_disable_game_dvr",
+			Name:     "Desativar gravação em segundo plano (Game DVR)",
+			Category: CategoryGaming,
+			Description: "O Xbox Game Bar grava sua tela em segundo plano continuamente para " +
+				"poder salvar os últimos minutos de jogo a qualquer momento, mesmo quando você " +
+				"não pediu. Isso consome CPU, GPU e disco o tempo todo que você está jogando. " +
+				"Desativar libera esses recursos para o jogo em si.",
+			Impact: "Efeito imediato. Você perde a gravação automática dos últimos minutos " +
+				"(Win+Alt+G); gravar manualmente continua funcionando se precisar.",
+		},
+		{
+			ID:       "gaming_disable_game_bar_overlay",
+			Name:     "Desativar abertura automática do Xbox Game Bar",
+			Category: CategoryGaming,
+			Description: "Impede que o overlay do Xbox Game Bar (Win+G) apareça sozinho ao " +
+				"abrir alguns jogos, o que pode causar engasgos (stutter) momentâneos bem na " +
+				"hora que o jogo está carregando.",
+			Impact: "Efeito imediato. O atalho Win+G para de abrir o Game Bar sozinho; ainda " +
+				"dá para abrir manualmente pelas Configurações se quiser voltar a usá-lo.",
 		},
 	}
 }

@@ -5,6 +5,13 @@ import { icon } from '../icons.js';
 const CATEGORY_LABEL = {
   energia: 'Energia',
   visual: 'Visual',
+  jogos: 'Jogos',
+};
+
+const CATEGORY_BADGE_CLASS = {
+  energia: 'badge-power',
+  visual: 'badge-visual',
+  jogos: 'badge-gaming',
 };
 
 const STATUS_LABEL = {
@@ -72,7 +79,7 @@ export function mountOptimizeView(container) {
         <div>
           <div class="card-title-group">
             <span class="card-title">${escapeHtml(dto.name)}</span>
-            <span class="badge badge-${dto.category === 'energia' ? 'power' : 'visual'}">${escapeHtml(CATEGORY_LABEL[dto.category] ?? dto.category)}</span>
+            <span class="badge ${CATEGORY_BADGE_CLASS[dto.category] ?? ''}">${escapeHtml(CATEGORY_LABEL[dto.category] ?? dto.category)}</span>
           </div>
         </div>
         <div>${statusPillHtml(entry)}</div>
