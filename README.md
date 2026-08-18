@@ -18,8 +18,8 @@ fábrica na grande maioria das instalações do Windows 10/11).
 
 **Requisitos**: Windows 10 ou 11 (64 bits).
 
-1. Baixe `winsweep-setup.msi` (veja [Build](#build-gerar-o-instalador) abaixo
-   caso ainda não exista um instalador pronto para a versão que você quer).
+1. Baixe `winsweep-setup.msi` na [página de Releases](https://github.com/guivicentep/winsweep/releases/latest)
+   (ou gere um novo, veja [Build](#build-gerar-o-instalador) abaixo).
 2. Dê duplo clique no arquivo `.msi` e siga o assistente. Não é necessário
    ser administrador nem aparece nenhum aviso do Controle de Conta de
    Usuário (UAC) — a instalação é feita só para o seu usuário.
